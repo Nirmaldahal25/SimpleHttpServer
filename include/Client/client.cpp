@@ -112,8 +112,8 @@ void Client::runevents()noexcept
             // sendResponse(client_socket, filedata);
         }
     }
-    shutdown(client_socket,SHUT_RDWR);
-    close(client_socket);
+    shutdown(client.sockfd,SHUT_RDWR);
+    close(client.sockfd);
     {   
         std::lock_guard<std::mutex> lock(Client::climutex);
         Client::clientThreadReady.push_back(this->clientid);

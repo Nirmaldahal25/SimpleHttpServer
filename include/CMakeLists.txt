@@ -34,4 +34,10 @@ add_libs_and_include_directories(Media_Class
                         Media_Class/Files.hpp
                         Media_Class/Files.cpp
 )
+
+add_libs_and_include_directories(Argparser
+                        Argparser/argparse.hpp
+                        Argparser/argparse.cpp
+)
+
 target_compile_features(Media_Class PRIVATE cxx_std_17)

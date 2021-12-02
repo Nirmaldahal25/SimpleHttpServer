@@ -6,8 +6,6 @@ set_property(GLOBAL PROPERTY libraries)
 # set(CXX_STANDARD ON)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories("templates") 
-include_directories("static")
 add_subdirectory("include")
 add_subdirectory("src")
 
