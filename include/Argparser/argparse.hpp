@@ -2,12 +2,12 @@
 #define ARGPARSE 1
 
 #include <array>
-#include <map>
 #include <utility>
 #include <cctype>
 #include <sstream>
 #include <iostream>
-#include <tuple>
+#include <variant>
+#include <optional>
 
 enum DATA_TYPE{
     INTEGER,
@@ -18,7 +18,6 @@ enum DATA_TYPE{
 
 template <size_t value = 0>
 struct Argparse{
-    typedef std::tuple<int, char, double, std::string> Returntype;
     void setArgument(std::string _variable_name, std::string _help, DATA_TYPE datamode)noexcept
     {
         this->help[indexes[0]++] = std::move(_help);
@@ -26,10 +25,19 @@ struct Argparse{
         this->d_type[indexes[2]++] = datamode;
     }
 
+    template<typename P>
     auto getArg(int index) const
     {
-        auto data = getArgument(args[index], d_type[index]);
-        return data;
+        try{
+            auto data = std::get<std::optional<P>>(getArgument(args[index], d_type[index]));
+            return data;
+        }
+        catch(const std::bad_variant_access& e)
+        {
+            std::cerr<<e.what()<<std::endl;
+            std::optional<P> data = std::nullopt;
+            return data;
+        }
     }
 
     void parseArgument(int noofdata, char** argv)
@@ -127,23 +135,23 @@ struct Argparse{
             return iss.eof() && !iss.fail(); 
         }
 
-
+        typedef std::variant<std::optional<char>, std::optional<int>, std::optional<double>, std::optional<std::string>, decltype(std::nullopt)> Returntype;
         Returntype getArgument(const std::string& arg,DATA_TYPE datamode)const
         {
+            if (arg.size()==0) return std::nullopt;
             switch (datamode)
             {
                 case DATA_TYPE::INTEGER:
-                    return {std::stoi(arg),' ',0, ""};
+                    return std::optional(std::stoi(arg));
                     break;
                 case DATA_TYPE::CHAR:
-                    return {0,arg[0],0, ""};
+                    return std::optional(arg[0]);
                     break;
                 case DATA_TYPE::FLOATING_POINT:
-                    return {0,' ',std::stod(arg),""};
+                    return std::optional(std::stod(arg));
                     break;
                 default:
-                    return {0,' ',0,arg};
-                    break;
+                    return std::optional(arg);
             }
         }
 

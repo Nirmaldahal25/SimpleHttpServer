@@ -10,13 +10,14 @@ int main(int argc, char * argv[])
     parse.setArgument("--port", "Port No to listen on", DATA_TYPE::INTEGER);
     parse.parseArgument(argc-1, argv);
 
-    int threadpoll = std::get<int>(parse.getArg(0));
-    int port = std::get<int>(parse.getArg(2));
+    int threadpoll = static_cast<int>(parse.getArg<int>(0).value_or(4));
+    int port = static_cast<int>(parse.getArg<int>(2).value_or(80));
+    std::string ip = static_cast<std::string>(parse.getArg<std::string>(1).value_or("127.0.0.1"));
 
     SocketDescriptor server; 
     server.sockfd = Server::init();
     Server::setSocketServerProperties(server.sockfd);
-    server.address = Server::setServerAddr(80, "127.0.0.1");
+    server.address = Server::setServerAddr(port, ip.c_str());
     Server::listeners(server.sockfd, 10);
 
     Threadpool::setServer(server);
