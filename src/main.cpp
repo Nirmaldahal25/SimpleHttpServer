@@ -1,7 +1,9 @@
 #include "server.hpp"
 #include "threadpool.hpp"
 #include "argparse.hpp"
+#include "files.hpp"
 
+#include <iostream>
 int main(int argc, char * argv[])
 {
     Argparse<3> parse;
