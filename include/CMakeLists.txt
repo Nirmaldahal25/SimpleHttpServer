@@ -40,4 +40,9 @@ add_libs_and_include_directories(Argparser
                         Argparser/argparse.cpp
 )
 
+add_libs_and_include_directories(HTTPMessages
+                        HTTPMessages/httprequests.hpp
+                        HTTPMessages/httprequests.cpp
+)
+
 target_compile_features(Media_Class PRIVATE cxx_std_17)

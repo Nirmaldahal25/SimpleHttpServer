@@ -25,7 +25,6 @@ struct Directory
     std::vector<Directory::Type> types;
 };
 
-//Note that the path starts with application name
 namespace Files
 {
     // return true if a file exists in the path
