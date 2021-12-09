@@ -25,31 +25,25 @@ Threadpool* Threadpool::getInstance(int pool)
 
 void Threadpool::signalHandler(int signum)
 {
-    Threadpool::getInstance()->workState = false;
     Threadpool::getInstance()->stop();
 }
 
 void Threadpool::handleConnections(int pool)
 {   
     for(int i=0;i<pool;i++){
-        clients_handler.emplace_back([this]{
-            while(true){
-                Tasks task;
-                {
-                    std::unique_lock lock(locker);
-                    callwait.wait(lock,[=]{
-                        return stopper || !tasks.empty(); });
-                    task=std::move(tasks.front());
-                    tasks.pop();
-                    if(stopper)
+        clients_handler.emplace_back([this](){
+                while(true){
+                    Tasks task;
                     {
-                        if(!stopped) this->stop();  
-                        break;
+                        std::unique_lock lock(locker);
+                        callwait.wait(lock,[=]{ return stopper || !tasks.empty(); }); 
+                        task=std::move(tasks.front());
+                        tasks.pop();
+                        if(stopper) break;
                     }
+                    task();
                 }
-                task();
             }
-        }
         );
     }
 }
@@ -69,12 +63,16 @@ void Threadpool::stop()
     {
         std::unique_lock<std::mutex> lock(locker);
         stopper = true;
-        stopped = true;
     }
+
     callwait.notify_all();
-    for(auto& thread:clients_handler)
-        thread.join();
     shutdown(server.sockfd, SHUT_RDWR);
+    close(server.sockfd);
+    
+    for(auto& thread:clients_handler) 
+    {
+        thread.join();
+    }
     Threadpool::clients_handler.clear();  
 }
 
@@ -83,13 +81,13 @@ void Threadpool::acceptConnections()
     int client_socket;
     sockaddr_in client_addr;
     int length = sizeof(client_addr);
+
     client_socket = accept(server.sockfd, (sockaddr *)(&client_addr), (socklen_t *)(&length));
     if (client_socket == -1) return;
-
     {
         std::lock_guard<std::mutex> lock(Client::climutex);
         if(Client::clientThreadReady.size()!=0)
-        {
+        {   
             enqueue(std::bind(&Client::setClientSockaddr,
             &clients[Client::clientThreadReady.front()],client_socket,client_addr));
             Client::clientThreadReady.pop_front();

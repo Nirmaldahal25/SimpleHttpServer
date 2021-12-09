@@ -1,8 +1,9 @@
 #include "Files.hpp"
 #include <iostream>
-const std::string path;
+const std::string path = "/mnt/d/SimpleHttpServer/templates";
 const std::filesystem::path HOSTED_FOLDER = []()->auto{
     std::filesystem::current_path(path);
+    chdir(path.c_str());
     return std::filesystem::current_path();
 }();
 
@@ -72,53 +73,81 @@ std::tuple<bool,enum Directory::Type> Files::checkForFileorFolder(const std::str
     return std::make_tuple<bool,enum Directory::Type>(false, Directory::Type::NoneType);
 }
 
+void closeFile(int *fd)
+{
+    close(*fd);
+    delete fd;
+}
+
 bool Files::readFromFile(const std::string& filename, std::string& buff, int offset)
 {
-    std::unique_ptr<int,void(*)(int*)> fd(NULL,[](int* fd)->void{ close(*fd); });
-    fd.reset(new int(open(filename.c_str(), O_RDONLY)));
-    int rd = 0, total_read = 0;
+    // std::unique_ptr<int,void(*)(int*)> fd(NULL,&closeFile);
+    // fd.reset(new int(open(filename.c_str(), O_RDONLY)));
+    // int rd = 0, total_read = 0;
+    // buff.clear();
 
-    if(*fd = -1) return false;
-    
-    total_read = lseek(*fd, 0, SEEK_END);
-    lseek(*fd,offset,SEEK_SET);
+    // if(*fd.get()= -1)
+    // {
+    //     perror("fd -1");
+    //     return false;
+    // }
 
-    std::vector<char> data(total_read);
+    // total_read = lseek(*fd, 0, SEEK_END);
+    // lseek(*fd.get(),offset,SEEK_SET);
 
-    while (offset != total_read)
-    {
-        rd = pread(*fd, &data[offset], total_read-offset, offset);
-        if(rd == -1)
-        {
-            buff.clear();
-            buff.reserve(offset);
-            buff.insert(buff.begin(),data.begin(),data.begin()+offset);
-            return false;
-        }
-        offset += rd;
-    }
+    // std::vector<char> data(total_read);
+    // while (offset != total_read)
+    // {
+    //     rd = pread(*fd.get(), &data[offset], total_read-offset, offset);
+    //     if(rd == -1)
+    //     {
+    //         buff.append(data.begin(),data.begin()+offset);
+    //         return false;
+    //     }
+    //     offset += rd;
+    // }
+    // buff.append(data.begin(),data.begin()+offset);
+    // std::cout<<buff<<std::endl;
+    // return true;
     buff.clear();
-    buff.reserve(offset);
-    buff.insert(buff.begin(),data.begin(),data.begin()+offset);
+    FILE *fpt;
+    fpt =fopen(filename.c_str(),"r");
+    if(fpt == NULL) 
+    {
+        perror("fpt = Null");
+        return false;
+    }else
+    {
+        int index = 0;
+        while((index = fgetc(fpt)) != EOF)
+        {
+            buff += static_cast<char> (index);
+        }
+    }
+    fclose(fpt);
     return true;
 }
 
 bool Files::writeToFile(const std::string& filename, std::string& buff, int offset)
 {
-    std::unique_ptr<int,void(*)(int*)> fd(NULL,[](int* fd)->void{ close(*fd); });
-    fd.reset(new int(open(filename.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)));
+    std::unique_ptr<int,void(*)(int*)> fd(NULL,&closeFile);
+    fd.reset(new int(open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)));
     int rd = 0, filesize = 0;
 
-    if(*fd = -1) return false;
+    if(*fd.get() == -1)
+    {
+        perror("fd -1");
+        return false;
+    }
 
     filesize = lseek(*fd, 0, SEEK_END);
-    lseek(*fd,filesize > 0 ? filesize : offset,SEEK_SET);
+    lseek(*fd.get(),filesize > 0 ? filesize : offset,SEEK_SET);
 
     const char* buf = buff.c_str();
 
     while (offset != buff.size())
     {
-        rd = pwrite(*fd, &buf[offset], buff.size() - offset, filesize + offset);
+        rd = pwrite(*fd.get(), &buf[offset], buff.size() - offset, filesize + offset);
         if(rd == -1)
         {
             buff.erase(buff.begin() + offset);

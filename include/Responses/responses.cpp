@@ -1,6 +1,6 @@
 #include "responses.hpp"
-
-int sendData(int sockfd, const void *data, int data_size)
+#include <iostream>
+int Responses::sendData(int sockfd, const void *data, int data_size)
 {
     const char *data_ptr = (const char*) data;
     int bytes_sent;
@@ -18,7 +18,7 @@ int sendData(int sockfd, const void *data, int data_size)
     return 1;
 }
 
-int sendData(int sockfd, const std::string &data)
+int Responses::sendData(int sockfd, const std::string &data)
 {
     ulong data_size = htonl(data.size());
 
@@ -29,7 +29,7 @@ int sendData(int sockfd, const std::string &data)
     return result;
 }
 
-int receiveData(int sockfd, void *data, int data_size)
+int Responses::receiveData(int sockfd, void *data, int data_size)
 {
     char *data_ptr = (char*) data;
     int bytes_recv;
@@ -47,7 +47,7 @@ int receiveData(int sockfd, void *data, int data_size)
     return 1;
 }
 
-int receiveData(int sockfd, std::string &data)
+int Responses::receiveData(int sockfd, std::string &data)
 {
     ulong data_size;
     int result;
@@ -69,4 +69,34 @@ int receiveData(int sockfd, std::string &data)
     }
 
     return result;
+}
+
+int Responses::sendResponse(int sockfd, const std::string& str)
+{
+    size_t sent = 0, sen = 0;
+    while(sent < str.size())
+    {
+        sen = send(sockfd, str.c_str() + sent,str.size()-sent,0);
+        if(sen == -1) break;
+        else
+        {
+            sent += sen;
+        }
+    }
+    return sent;
+}
+
+int Responses::recvResponse(int sockfd, std::string& str,int size)
+{
+    std::vector<char> dat(size);
+    int rec = 0, revt = 0;
+
+    rec = recv(sockfd, dat.data(), dat.size() - revt, 0);
+    if(rec != -1)
+    {
+        revt += rec;
+    }
+    str.clear();
+    str.append(dat.begin(),dat.begin()+revt);
+    return revt;
 }

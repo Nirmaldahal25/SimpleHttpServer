@@ -2,52 +2,49 @@
 sockaddr_in Server::setServerAddr(int port, const char *address)
 {
     sockaddr_in server_address;
-    server_address.sin_family = PF_INET;
+    bzero(&server_address,sizeof(server_address));
     server_address.sin_port = htons(port);
+    server_address.sin_family = AF_INET;
     if (address == nullptr)
     {
-        server_address.sin_addr.s_addr = INADDR_ANY;
+        server_address.sin_addr.s_addr = htonl(INADDR_ANY);
     }
     else
     {
-        in_addr serveraddress;
-        inet_aton(address, &serveraddress);
-        // inet_addr();
-        server_address.sin_addr.s_addr = serveraddress.s_addr;
+        server_address.sin_addr.s_addr = inet_addr(address);
     }
     return server_address;
 }
 
 int Server::init()
 {
-    int server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP); //IPPROTO_TCP SOL_SOCKET
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0); //IPPROTO_TCP SOL_SOCKET
     if (server_socket == -1)
-        std::cerr << "Socket inintialization error\n";
+        perror( "Socket inintialization error\n");
     return server_socket;
 }
 
-bool Server::binding(int sock, sockaddr_in& address)
-{
-    try{
-        return bind(sock, (sockaddr *)&address, sizeof(address)) > 0;
-    }
-    catch(...)
+void Server::binding(SocketDescriptor& server)
+{   
+    int rc =  bind(server.sockfd,(struct sockaddr *)&(server.address),sizeof(server.address));
+    if( rc == -1)
     {
-        return false;
+        perror("binding failed");
     }
 }
 
 void Server::setSocketServerProperties(int sock)
 {
-    bool optval = true;
-    int optlen = sizeof optval;
-    if (setsockopt(sock, IPPROTO_TCP, SO_REUSEADDR, (char *)(&optval), (socklen_t)sizeof(optlen)) == -1)
-        std::cerr << "SetsockOpt(): method instantiation failed\n";
+    int optval = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+        perror("SetsockOpt(): SO_REUSEADDR failed\n");
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) == -1)
+        perror("SetsockOpt(): SO_REUSEADDR failed\n");
 }
 
 void Server::listeners(int sockfd, int no)
 {
-    if(listen(sockfd, no)==-1) std::cerr<<"Listen() on socket faild\n";
+    if(listen(sockfd, no)==-1) perror("Listen() on socket faild\n");
 }
 
 void Server::closeServerSocket(int sockfd)

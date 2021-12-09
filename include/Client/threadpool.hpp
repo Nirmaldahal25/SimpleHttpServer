@@ -9,6 +9,7 @@
 #include <iostream>
 #include <condition_variable>
 #include <signal.h>
+#include <system_error>
 
 #include "server.hpp"
 #include "client.hpp"
@@ -40,7 +41,6 @@ private:
 
 
     bool stopper = false;
-    bool stopped = false;
     
     static Threadpool* threadp;
     static SocketDescriptor server;
