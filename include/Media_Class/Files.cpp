@@ -1,9 +1,12 @@
 #include "Files.hpp"
-#include <iostream>
+
 const std::string path = "/mnt/d/SimpleHttpServer/templates";
 const std::filesystem::path HOSTED_FOLDER = []()->auto{
     std::filesystem::current_path(path);
-    chdir(path.c_str());
+    if(chdir(path.c_str()) == -1)
+    {
+        perror("Couldn't Change Directory");
+    }
     return std::filesystem::current_path();
 }();
 

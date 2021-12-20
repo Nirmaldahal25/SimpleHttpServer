@@ -26,18 +26,9 @@ struct Argparse{
     }
 
     template<typename P>
-    auto getArg(int index) const
+    auto getArg(int index) const noexcept(false)
     {
-        try{
-            auto data = std::get<std::optional<P>>(getArgument(args[index], d_type[index]));
-            return data;
-        }
-        catch(const std::bad_variant_access& e)
-        {
-            std::cerr<<e.what()<<std::endl;
-            std::optional<P> data = std::nullopt;
-            return data;
-        }
+        return std::get<std::optional<P>>(getArgument<P>(args[index], d_type[index]));
     }
 
     void parseArgument(int noofdata, char** argv)
@@ -135,10 +126,15 @@ struct Argparse{
             return iss.eof() && !iss.fail(); 
         }
 
-        typedef std::variant<std::optional<char>, std::optional<int>, std::optional<double>, std::optional<std::string>, decltype(std::nullopt)> Returntype;
+        typedef std::variant<std::optional<char>, std::optional<int>, std::optional<double>, std::optional<std::string>> Returntype;
+        template <typename P>
         Returntype getArgument(const std::string& arg,DATA_TYPE datamode)const
         {
-            if (arg.size()==0) return std::nullopt;
+            if (arg.size()==0)
+            {
+                std::optional<P> nulltype = std::nullopt;
+                return nulltype;
+            }
             switch (datamode)
             {
                 case DATA_TYPE::INTEGER:
