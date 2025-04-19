@@ -1,6 +1,6 @@
-#include "server.hpp"
-#include "threadpool.hpp"
-#include "argparse.hpp"
+#include "Server/server.hpp"
+#include "Client/threadpool.hpp"
+#include "Argparser/argparse.hpp"
 #include <future>
 
 int main(int argc, char *argv[])
