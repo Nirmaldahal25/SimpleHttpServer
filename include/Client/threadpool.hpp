@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <signal.h>
 #include <system_error>
+#include <atomic>
 
 #include "server.hpp"
 #include "client.hpp"
@@ -17,39 +18,57 @@ class Client;
 class Threadpool
 {
 public:
-    using Tasks=std::function<void()>;
-    void enqueue(Tasks task);
-    std::queue<Tasks> tasks;
-    std::mutex locker;
-    std::mutex climutex;
-    std::condition_variable callwait;
-    bool workState = true;
+    void enqueue(std::unique_ptr<Client> _client);
 
-    Threadpool(const Threadpool&) = delete;
-    void operator=(const Threadpool&) = delete;
-    
-    static Threadpool* getInstance(int pool = 1);
-    static void setServer(const SocketDescriptor& _server);
+    bool isWorking() noexcept;
 
+    Threadpool(const Threadpool &) = delete;
+    void operator=(const Threadpool &) = delete;
+
+    static Threadpool *getInstance(int pool);
+
+    // Creates a copy of server instance and share between clients
+    static void setServer(const SocketDescriptor &_server);
+
+    // Start running the threadpool
+    void run();
+
+    // Accept connections from client
     void acceptConnections();
 
-    ~Threadpool(){
+    ~Threadpool()
+    {
         delete threadp;
-    }   
+    }
+
 private:
-    Threadpool(int)noexcept;
+    Threadpool(int) noexcept;
 
+    // Create a unique lock
+    std::unique_ptr<std::mutex> lock;
 
-    bool stopper = false;
-    
-    static Threadpool* threadp;
-    static SocketDescriptor server;
+    // A condition variable to notify threads for execution
+    std::condition_variable callwait;
 
+    // Stopper to close all threads
+    std::atomic<bool> stopper = false;
+
+    std::queue<std::unique_ptr<Client>> tasks;
+
+    static Threadpool *threadp;
+
+    // A pointer that can be shared between clients
+    std::shared_ptr<SocketDescriptor> server;
     std::vector<std::thread> clients_handler;
-    std::vector<Client> clients;
 
-    void handleConnections(int pool);
+    // Create a threadpool of thread_count threads
+    unsigned int threads_count;
+    void handleConnections();
+
+    // Signal Handler to SIGINT
     static void signalHandler(int);
+
+    // Stop the threadpool.
     void stop();
 };
 

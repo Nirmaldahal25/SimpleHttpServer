@@ -1,22 +1,14 @@
 #include "threadpool.hpp"
-SocketDescriptor Threadpool::server;
-Threadpool::Threadpool(int pool) noexcept
+Threadpool::Threadpool(int pool) noexcept : lock(new std::mutex()), server(nullptr), threads_count(pool)
 {
-    for(int i=0;i<pool;i++)
-        clients.emplace_back(Client(server, i));
-    this->handleConnections(pool);
 }
 
-Threadpool* Threadpool::threadp = nullptr;
+Threadpool *Threadpool::threadp = nullptr;
 
-void Threadpool::setServer(const SocketDescriptor& _server)
+Threadpool *Threadpool::getInstance(int pool)
 {
-    Threadpool::server = _server;
-}
-
-Threadpool* Threadpool::getInstance(int pool)
-{
-    if(Threadpool::threadp == nullptr){
+    if (Threadpool::threadp == nullptr)
+    {
         Threadpool::threadp = new Threadpool(pool);
         signal(SIGINT, Threadpool::signalHandler);
     }
@@ -25,55 +17,51 @@ Threadpool* Threadpool::getInstance(int pool)
 
 void Threadpool::signalHandler(int signum)
 {
-    Threadpool::getInstance()->stop();
+    std::cout << "\nSoft Shutdown..." << std::endl;
+    threadp->stop();
 }
 
-void Threadpool::handleConnections(int pool)
-{   
-    for(int i=0;i<pool;i++){
-        clients_handler.emplace_back([this](){
-                while(true){
-                    Tasks task;
-                    {
-                        std::unique_lock lock(locker);
-                        callwait.wait(lock,[=]{ return stopper || !tasks.empty(); }); 
-                        task=std::move(tasks.front());
-                        tasks.pop();
-                        if(stopper) break;
-                    }
-                    task();
-                }
-            }
-        );
-    }
-}
-
-void Threadpool::enqueue(Tasks task)
+void Threadpool::handleConnections()
 {
+    for (int i = 0; i < threads_count; i++)
     {
-        std::lock_guard guard(locker);
-        tasks.emplace(std::move(task));
+        clients_handler.emplace_back([this, i]()
+                                     {
+                while(true){
+                    {
+                        std::unique_lock lock(*this->lock);
+                        callwait.wait(lock,[&]{ return stopper || !tasks.empty(); }); 
+                        if(stopper || tasks.empty()){
+                            break;
+                        }
+                        std::unique_ptr<Client> client=std::move(tasks.front());
+                        tasks.pop();
+                        client->runevents();
+                    }
+                } });
     }
+}
+
+void Threadpool::enqueue(std::unique_ptr<Client> _client)
+{
+    std::lock_guard guard(*this->lock);
+    tasks.emplace(std::move(_client));
     callwait.notify_one();
 }
 
 void Threadpool::stop()
-{   
-    this->workState = false;
-    {
-        std::unique_lock<std::mutex> lock(locker);
-        stopper = true;
-    }
-
+{
+    stopper = true;
     callwait.notify_all();
-    shutdown(server.sockfd, SHUT_RDWR);
-    close(server.sockfd);
-    
-    for(auto& thread:clients_handler) 
+    for (auto &thread : clients_handler)
     {
         thread.join();
     }
-    Threadpool::clients_handler.clear();  
+    Threadpool::clients_handler.clear();
+
+    // shutdown server socket
+    shutdown(server->sockfd, SHUT_RDWR);
+    close(server->sockfd);
 }
 
 void Threadpool::acceptConnections()
@@ -82,16 +70,33 @@ void Threadpool::acceptConnections()
     sockaddr_in client_addr;
     int length = sizeof(client_addr);
 
-    client_socket = accept(server.sockfd, (sockaddr *)(&client_addr), (socklen_t *)(&length));
-    if (client_socket == -1) return;
+    client_socket = accept(server->sockfd, (sockaddr *)(&client_addr), (socklen_t *)(&length));
+    if (client_socket != -1)
     {
-        std::lock_guard<std::mutex> lock(Client::climutex);
-        if(Client::clientThreadReady.size()!=0)
-        {   
-            enqueue(std::bind(&Client::setClientSockaddr,
-            &clients[Client::clientThreadReady.front()],client_socket,client_addr));
-            Client::clientThreadReady.pop_front();
-        }
+        enqueue(std::make_unique<Client>(server, client_socket, client_addr));
+    }
+
+    if (client_socket == -1 && !stopper)
+    {
+        perror("Error accepting connections");
     }
 }
 
+bool Threadpool::isWorking() noexcept
+{
+    return !stopper;
+}
+
+void Threadpool::setServer(const SocketDescriptor &_server)
+{
+    threadp->server.reset(new SocketDescriptor(_server));
+}
+
+void Threadpool::run()
+{
+    if (server == nullptr)
+    {
+        throw "The server is not set yet";
+    }
+    threadp->handleConnections();
+}

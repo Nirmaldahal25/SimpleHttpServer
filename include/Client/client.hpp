@@ -13,22 +13,21 @@
 class Client
 {
 public:
-    Client()=delete;
-    Client(SocketDescriptor server,int);
-    void setClientSockaddr(int client,sockaddr_in client_add);
-    void setClientSocketOptions()noexcept;
+    Client() = delete;
+    Client(std::shared_ptr<SocketDescriptor> server, int client_fd, sockaddr_in client_addr);
+    void setClientSocketOptions() noexcept;
     bool setBlockingMode(bool block) noexcept;
-    static std::mutex climutex;
-    static std::list<int> clientThreadReady;
 
-    //On blocking Mode OS stops waiting for the request, default = 15 sec
+    // On blocking Mode OS stops waiting for the request, default = 15 sec
     void blockingTime(int time = 15);
-private:
-    int clientid;
-    SocketDescriptor client;
 
-    SocketDescriptor server;
-    
-    void runevents()noexcept;
-    const std::string getHostnameOfClient()noexcept;
+    // runevents
+    void runevents() noexcept;
+
+private:
+    SocketDescriptor m_client;
+
+    std::weak_ptr<SocketDescriptor> m_server;
+
+    const std::string getHostnameOfClient() noexcept;
 };
