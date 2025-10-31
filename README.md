@@ -37,5 +37,3 @@ This project implements a minimal HTTP server that:
 
 ---
 
-## 📁 Example Directory Structure
-
